@@ -5,7 +5,7 @@ import CJanet
 /// The VM state is thread-local: use the runtime only on the thread that created it,
 /// and create at most one runtime per thread at a time.
 public final class JanetRuntime {
-    private let env: UnsafeMutablePointer<JanetTable>
+    let env: UnsafeMutablePointer<JanetTable>
 
     public init() {
         janet_init()
@@ -43,5 +43,12 @@ extension JanetError.Phase {
         if flags & JANET_DO_ERROR_PARSE != 0 { self = .parse }
         else if flags & JANET_DO_ERROR_COMPILE != 0 { self = .compile }
         else { self = .runtime }
+    }
+}
+
+extension JanetRuntime {
+    /// Binds `value` to `name` in the core environment so later evaluations can refer to it.
+    public func define(_ name: String, _ value: JanetValue, documentation: String? = nil) {
+        janet_def(env, name, value.makeRaw(), documentation)
     }
 }
