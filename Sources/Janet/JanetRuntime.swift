@@ -1,54 +1,40 @@
-import CJanet
-
-/// One Janet VM with its core environment.
+/// One Janet VM, driven from a dedicated thread.
 ///
-/// The VM state is thread-local: use the runtime only on the thread that created it,
-/// and create at most one runtime per thread at a time.
-public final class JanetRuntime {
-    let env: UnsafeMutablePointer<JanetTable>
+/// Every call runs on the runtime's own thread, so Janet's thread-local VM state is
+/// only ever touched from there. Each runtime owns one thread and one VM; create as
+/// many as you need. The VM and its thread go away with the runtime.
+public actor JanetRuntime {
+    private let executor: ThreadExecutor
+    private var vm: JanetVM?
 
-    public init() {
-        janet_init()
-        env = janet_core_env(nil)
+    public nonisolated var unownedExecutor: UnownedSerialExecutor {
+        executor.asUnownedSerialExecutor()
     }
 
-    deinit {
-        janet_deinit()
+    public init(name: String = "JanetRuntime") {
+        executor = ThreadExecutor(name: name)
+    }
+
+    isolated deinit {
+        vm = nil
     }
 
     /// Parses, compiles and runs `source`, returning the value of its last form.
     @discardableResult
     public func eval(_ source: String, sourceName: String = "swift") throws(JanetError) -> JanetValue {
-        var out = janet_wrap_nil()
-        let flags = janet_dostring(env, source, sourceName, &out)
-        if flags != 0 {
-            throw JanetError(phase: .init(dostringFlags: flags), message: errorMessage(from: out))
-        }
-        return JanetValue(raw: out)
+        try activeVM().eval(source, sourceName: sourceName)
     }
 
-    private func errorMessage(from raw: Janet) -> String {
-        if janet_checktype(raw, JANET_STRING) != 0 {
-            return String(janetBytes: janet_unwrap_string(raw))
-        }
-        return String(janetBytes: janet_to_string(raw))
-    }
-}
-
-@available(*, unavailable, message: "JanetRuntime is bound to the thread that created it")
-extension JanetRuntime: Sendable {}
-
-extension JanetError.Phase {
-    init(dostringFlags flags: Int32) {
-        if flags & JANET_DO_ERROR_PARSE != 0 { self = .parse }
-        else if flags & JANET_DO_ERROR_COMPILE != 0 { self = .compile }
-        else { self = .runtime }
-    }
-}
-
-extension JanetRuntime {
     /// Binds `value` to `name` in the core environment so later evaluations can refer to it.
     public func define(_ name: String, _ value: JanetValue, documentation: String? = nil) {
-        janet_def(env, name, value.makeRaw(), documentation)
+        activeVM().define(name, value, documentation: documentation)
+    }
+
+    /// The VM is created on first use because `init` runs on the caller's thread.
+    private func activeVM() -> JanetVM {
+        if let vm { return vm }
+        let vm = JanetVM()
+        self.vm = vm
+        return vm
     }
 }
