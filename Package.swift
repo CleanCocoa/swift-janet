@@ -4,6 +4,7 @@ import PackageDescription
 
 let package = Package(
     name: "Janet",
+    platforms: [.macOS(.v26)],
     products: [
         .library(name: "Janet", targets: ["Janet"]),
         .library(name: "CJanet", targets: ["CJanet"]),
