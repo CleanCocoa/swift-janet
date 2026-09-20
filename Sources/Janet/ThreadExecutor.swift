@@ -70,13 +70,14 @@ final class ThreadExecutor: SerialExecutor {
             while true {
                 condition.lock()
                 while jobs.isEmpty && !stopped { condition.wait() }
-                if jobs.isEmpty && stopped {
-                    condition.unlock()
-                    return
-                }
-                let (job, executor) = jobs.removeFirst()
+                let batch = jobs
+                jobs.removeAll()
+                let shouldExit = batch.isEmpty && stopped
                 condition.unlock()
-                job.runSynchronously(on: executor)
+                if shouldExit { return }
+                for (job, executor) in batch {
+                    job.runSynchronously(on: executor)
+                }
             }
         }
     }
