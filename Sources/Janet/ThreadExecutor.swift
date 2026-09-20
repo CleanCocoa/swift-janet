@@ -24,7 +24,7 @@ final class ThreadExecutor: SerialExecutor {
     var isCurrentThread: Bool { state.isCurrentThread }
 
     func enqueue(_ job: consuming ExecutorJob) {
-        state.enqueue(UnownedJob(job), on: asUnownedSerialExecutor())
+        state.enqueue(UnownedJob(job), on: self)
     }
 
     func asUnownedSerialExecutor() -> UnownedSerialExecutor {
@@ -39,10 +39,12 @@ final class ThreadExecutor: SerialExecutor {
         precondition(isCurrentThread, "Expected to run on thread \(threadName)")
     }
 
-    /// Job queue owned by the thread, kept separate so the thread does not retain the executor.
+    /// Job queue owned by the thread. It retains the executor only while a job for it is
+    /// queued or running, so the executor's last release can happen inside one of its own
+    /// jobs without the job's executor reference dangling.
     private final class SharedState: @unchecked Sendable {
         private let condition = NSCondition()
-        private var jobs: [(UnownedJob, UnownedSerialExecutor)] = []
+        private var jobs: [(UnownedJob, ThreadExecutor)] = []
         private var stopped = false
         private var thread: pthread_t?
 
@@ -53,7 +55,7 @@ final class ThreadExecutor: SerialExecutor {
             return pthread_equal(thread, pthread_self()) != 0
         }
 
-        func enqueue(_ job: UnownedJob, on executor: UnownedSerialExecutor) {
+        func enqueue(_ job: UnownedJob, on executor: ThreadExecutor) {
             condition.lock()
             jobs.append((job, executor))
             condition.signal()
@@ -80,7 +82,7 @@ final class ThreadExecutor: SerialExecutor {
                 condition.unlock()
                 if shouldExit { return }
                 for (job, executor) in batch {
-                    job.runSynchronously(on: executor)
+                    job.runSynchronously(on: executor.asUnownedSerialExecutor())
                 }
             }
         }
