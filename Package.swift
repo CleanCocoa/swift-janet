@@ -22,11 +22,13 @@ let package = Package(
         ),
         .target(
             name: "Janet",
-            dependencies: ["CJanet"]
+            dependencies: ["CJanet"],
+            swiftSettings: [.treatAllWarnings(as: .error)]
         ),
         .testTarget(
             name: "JanetTests",
-            dependencies: ["Janet"]
+            dependencies: ["Janet"],
+            swiftSettings: [.treatAllWarnings(as: .error)]
         ),
     ],
     swiftLanguageModes: [.v6]
