@@ -23,12 +23,16 @@ final class ThreadExecutor: SerialExecutor {
 
     var isCurrentThread: Bool { state.isCurrentThread }
 
-    func enqueue(_ job: UnownedJob) {
-        state.enqueue(job, on: asUnownedSerialExecutor())
+    func enqueue(_ job: consuming ExecutorJob) {
+        state.enqueue(UnownedJob(job), on: asUnownedSerialExecutor())
     }
 
     func asUnownedSerialExecutor() -> UnownedSerialExecutor {
         UnownedSerialExecutor(ordinary: self)
+    }
+
+    func isIsolatingCurrentContext() -> Bool? {
+        isCurrentThread
     }
 
     func checkIsolated() {
