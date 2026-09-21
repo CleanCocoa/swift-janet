@@ -4,7 +4,7 @@
 /// only ever touched from there. Each runtime owns one thread and one VM; create as
 /// many as you need. The VM and its thread go away with the runtime.
 public actor JanetRuntime {
-    private let executor: ThreadExecutor
+    nonisolated let executor: ThreadExecutor
     /// Created on first isolated access, which is on the executor thread; `init` is not.
     private lazy var vm = JanetVM()
 
@@ -17,7 +17,9 @@ public actor JanetRuntime {
     }
 
     /// Isolated so `vm` is released, and `janet_deinit` runs, on the executor thread.
-    isolated deinit {}
+    isolated deinit {
+        executor.checkIsolated()
+    }
 
     /// Parses, compiles and runs `source`, returning the value of its last form.
     @discardableResult

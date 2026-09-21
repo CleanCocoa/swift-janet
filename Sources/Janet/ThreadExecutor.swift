@@ -33,6 +33,11 @@ final class ThreadExecutor: SerialExecutor {
 
     var isCurrentThread: Bool { state.isCurrentThread }
 
+    /// Runs `body` on the executor thread right before it exits.
+    func onThreadExit(_ body: @escaping @Sendable () -> Void) {
+        state.onExit = body
+    }
+
     func enqueue(_ job: consuming ExecutorJob) {
         state.enqueue(UnownedJob(job), on: self)
     }
@@ -57,6 +62,7 @@ final class ThreadExecutor: SerialExecutor {
         private var jobs: [(UnownedJob, ThreadExecutor)] = []
         private var stopped = false
         private var thread: pthread_t?
+        var onExit: (@Sendable () -> Void)?
 
         var isCurrentThread: Bool {
             condition.lock()
@@ -89,8 +95,12 @@ final class ThreadExecutor: SerialExecutor {
                 let batch = jobs
                 jobs.removeAll()
                 let shouldExit = batch.isEmpty && stopped
+                let onExit = shouldExit ? self.onExit : nil
                 condition.unlock()
-                if shouldExit { return }
+                if shouldExit {
+                    onExit?()
+                    return
+                }
                 for (job, executor) in batch {
                     job.runSynchronously(on: executor.asUnownedSerialExecutor())
                 }
