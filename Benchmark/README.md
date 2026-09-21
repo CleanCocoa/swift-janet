@@ -18,9 +18,11 @@ of exactly one layer:
 | `raw janet_dostring` | the C API on a `JanetVM`'s environment | nothing |
 | `JanetVM.eval` | same, plus error mapping and the deep copy into `JanetValue` | the copy layer, including the depth and cycle guard |
 | `JanetRuntime.eval` | same, through the actor | the hop to the executor thread and back |
+| `MainJanetRuntime.eval` | same, on the main thread, synchronously | nothing over `JanetVM.eval` |
 
 The first two rows run on one detached thread so no hop is included. The third row
-awaits the actor from a cooperative-pool thread, which is how callers use it.
+awaits the actor from a cooperative-pool thread, which is how callers use it. The
+fourth times a synchronous loop inside `MainActor.run`, which is how a UI calls it.
 
 Each row is wall-clock time for `iterations` sequential calls divided by the count,
 measured with `ContinuousClock`. There is no warm-up and no statistics; run it a few
@@ -41,19 +43,23 @@ Debug numbers are not meaningful for Swift code; always use release.
 Apple Silicon, macOS 26, Swift 6.3.3, release, 20 000 iterations, 2026-09-21:
 
 ```
-scalar       raw janet_dostring       1.20 µs/op
-scalar       JanetVM.eval             1.18 µs/op
-scalar       JanetRuntime.eval        8.38 µs/op
-collection   raw janet_dostring       3.29 µs/op
-collection   JanetVM.eval             4.11 µs/op
-collection   JanetRuntime.eval       12.09 µs/op
-nested-64    raw janet_dostring       6.34 µs/op
-nested-64    JanetVM.eval            11.56 µs/op
-nested-64    JanetRuntime.eval       20.69 µs/op
+scalar       raw janet_dostring           1.15 µs/op
+scalar       JanetVM.eval                 1.14 µs/op
+scalar       JanetRuntime.eval            6.17 µs/op
+scalar       MainJanetRuntime.eval        1.24 µs/op
+collection   raw janet_dostring           3.22 µs/op
+collection   JanetVM.eval                 4.00 µs/op
+collection   JanetRuntime.eval           10.08 µs/op
+collection   MainJanetRuntime.eval        4.38 µs/op
+nested-64    raw janet_dostring           6.10 µs/op
+nested-64    JanetVM.eval                11.20 µs/op
+nested-64    JanetRuntime.eval           17.20 µs/op
+nested-64    MainJanetRuntime.eval       11.18 µs/op
 ```
 
 Reading: the copy layer is free for scalars, under a microsecond for a 30-leaf
 collection, and about 80 ns per nesting level. The actor hop costs 6 to 9 µs per call,
 which is two context switches through the executor's condition variable. For trivial
 scripts the hop dominates; amortize it by doing more work per call rather than by
-tuning the executor.
+tuning the executor, or call `JanetRuntime.main`, which pays no hop at all and lands
+within measurement noise of `JanetVM.eval`.

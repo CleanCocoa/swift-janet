@@ -22,6 +22,9 @@ struct LayersBenchmark {
             report(label, "raw janet_dostring", raw)
             report(label, "JanetVM.eval", copied)
             report(label, "JanetRuntime.eval", try await timeAsync { _ = try await runtime.eval(script) })
+            report(label, "MainJanetRuntime.eval", await MainActor.run {
+                try! timeSync { _ = try JanetRuntime.main.eval(script) }
+            })
         }
     }
 
@@ -37,7 +40,7 @@ struct LayersBenchmark {
 
 private func report(_ script: String, _ layer: String, _ nanosPerOp: Double) {
     let micros = String(format: "%8.2f", nanosPerOp / 1000)
-    let line = "\(script.padding(toLength: 12, withPad: " ", startingAt: 0)) \(layer.padding(toLength: 20, withPad: " ", startingAt: 0)) \(micros) µs/op\n"
+    let line = "\(script.padding(toLength: 12, withPad: " ", startingAt: 0)) \(layer.padding(toLength: 24, withPad: " ", startingAt: 0)) \(micros) µs/op\n"
     FileHandle.standardError.write(line.data(using: .utf8)!)
 }
 
