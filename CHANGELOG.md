@@ -2,6 +2,13 @@
 
 Notable changes to this package. Small fixes and refactors are left out; the git log has them.
 
+## 0.1.1 - 2026-09-21
+
+- The executor traps if a second thread ever enters its job loop, closing the last
+  path by which Janet could run on the wrong thread.
+- README usage now leads with a comparison of the two runtimes.
+- The raw C API smoke test moved to its own `CJanetTests` target.
+
 ## 0.1.0 - 2026-09-21
 
 First release, intended for test-driving in apps. Requires macOS 26 and Swift 6.3 in
