@@ -14,6 +14,21 @@ Requires macOS 26 and Swift 6.3 (strict concurrency, `isolated deinit`).
 
 Design decisions are recorded in `docs/adrs/`; releases in `CHANGELOG.md`.
 
+## Installation
+
+Add the package to your `Package.swift`:
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/CleanCocoa/swift-janet", from: "0.1.0"),
+],
+targets: [
+    .target(name: "MyApp", dependencies: [.product(name: "Janet", package: "swift-janet")]),
+]
+```
+
+Or in Xcode, File > Add Package Dependencies and paste the repository URL.
+
 ## Usage
 
 ```swift
@@ -55,6 +70,12 @@ arrives as `.unsupported(typeName:)`.
   than 256 levels, or containing a cycle through an array or table, makes `eval` throw
   with phase `.copy` instead of overflowing the stack of whichever thread releases it.
 
+## Learning Janet
+
+- [Learn Janet in Y minutes](https://learnxinyminutes.com/janet) for a one-page tour of the syntax.
+- [Janet for Mortals](https://janet.guide/) for a book-length introduction.
+- [The Janet reference](https://janet-lang.org/docs/index.html) for the language and core library.
+
 ## Benchmarking
 
 `Benchmark/run.sh` measures what the Swift layers add over the raw C API; see
@@ -68,9 +89,13 @@ Scripts/vendor-janet.sh v1.42.1
 
 This clones the tag, builds the amalgamation with Janet's own Makefile, and copies
 `janet.c`, `janet.h`, `LICENSE` and a `VERSION` marker into `Sources/CJanet`.
-Janet is MIT licensed; see `Sources/CJanet/LICENSE`.
 
 ## Checking for leaks
 
 `Scripts/leaks.sh [--filter <test-or-suite>] [--graph <path.memgraph>]` runs the test
 bundle under macOS `leaks -atExit` and reports whether released `JanetRuntime` instances left the Janet VM or executor thread behind.
+
+## License
+
+MIT; see `LICENSE`. The vendored Janet sources are also MIT licensed; see
+`Sources/CJanet/LICENSE`.
