@@ -31,6 +31,21 @@ Or in Xcode, File > Add Package Dependencies and paste the repository URL.
 
 ## Usage
 
+The `Janet` module offers two runtimes. Pick by where the call happens:
+
+| | `JanetRuntime` | `JanetRuntime.main` |
+|---|---|---|
+| Runs on | its own dedicated thread | the main thread |
+| Call style | `try await` from anywhere | `try` from `@MainActor` code |
+| Instances | as many as you like, each an isolated VM | exactly one per process |
+| Good for | background scripts, parallel evaluation | UI that scripts each keypress |
+| Cost | a thread hop per call, about 5 to 7 µs | none, but the main thread blocks |
+
+Both share the same API: `eval` runs source and returns the last value, `define` binds
+a Swift value under a name for later evaluations.
+
+### Background: `JanetRuntime`
+
 ```swift
 import Janet
 
@@ -40,8 +55,10 @@ let result = try await janet.eval("(string greeting \", world\")")
 // result == .string("hello, world")
 ```
 
-On the main thread, `JanetRuntime.main` interprets synchronously, with no hop and no
-chance for other main-actor work to interleave between a call and its result:
+Each instance owns one VM on one thread and is `Sendable`. Drop the last reference to
+tear both down.
+
+### Main thread: `JanetRuntime.main`
 
 ```swift
 @MainActor func run() throws {
@@ -51,17 +68,21 @@ chance for other main-actor work to interleave between a call and its result:
 }
 ```
 
-There is one such VM per process, and every call blocks the main thread for its duration.
+Calls are synchronous, so nothing else on the main actor can interleave between a call
+and its result. State lives for the process; `JanetRuntime.main.reset()` discards every
+definition.
 
-`JanetValue` models nil, booleans, numbers, strings, keywords, symbols, tuples,
-arrays, structs and tables. Anything else (functions, fibers, buffers, abstracts)
-arrives as `.unsupported(typeName:)`.
+### Values and errors
+
+`JanetValue` is a Swift-owned copy of a Janet value: nil, booleans, numbers, strings,
+keywords, symbols, tuples, arrays, structs and tables. Anything else (functions, fibers,
+buffers, abstracts) arrives as `.unsupported(typeName:)`.
+
+`JanetError` carries Janet's message and the `phase` that failed: `.parse`, `.compile`,
+`.runtime`, or `.copy` when a value could not cross the boundary.
 
 ## Caveats
 
-- The Janet VM is thread-local, so each `JanetRuntime` runs on a dedicated thread it
-  owns. The runtime is `Sendable` and can be called from anywhere; create several to
-  run scripts in parallel. The thread and VM are torn down when the runtime is released.
 - At most one VM may be live per thread: creating a second one there, or touching a VM
   from another thread, traps. `JanetRuntime.main` owns the main thread's VM, so do not
   put another one there.
