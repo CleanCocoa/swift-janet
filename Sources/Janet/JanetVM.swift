@@ -10,7 +10,7 @@ import Glibc
 /// The VM state is thread-local: create, use, and release a `JanetVM` on one thread,
 /// and keep at most one per thread at a time. `JanetRuntime` enforces this.
 final class JanetVM {
-    let env: UnsafeMutablePointer<JanetTable>
+    private(set) var env: UnsafeMutablePointer<JanetTable>
     private let thread: pthread_t
 
     /// - Precondition: no other `JanetVM` is live on the calling thread.
@@ -29,6 +29,16 @@ final class JanetVM {
         precondition(isOnOwnThread, "JanetVM must be released on the thread that created it")
         janet_deinit()
         threadHasLiveVM = false
+    }
+
+    /// Discards every definition by restarting the VM in place.
+    ///
+    /// - Precondition: runs on the thread that created this VM, with no evaluation in progress.
+    func reset() {
+        precondition(isOnOwnThread, "JanetVM.reset must run on the thread that created the VM")
+        janet_deinit()
+        janet_init()
+        env = janet_core_env(nil)
     }
 
     private var isOnOwnThread: Bool { pthread_equal(thread, pthread_self()) != 0 }

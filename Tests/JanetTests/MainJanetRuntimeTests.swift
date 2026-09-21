@@ -20,6 +20,13 @@ struct MainJanetRuntimeTests {
         #expect(performing: { try JanetRuntime.main.eval("(error \"boom\")") }, throws: { ($0 as? JanetError)?.phase == .runtime })
     }
 
+    @Test func resetDiscardsDefinitions() throws {
+        try JanetRuntime.main.define("main-resettable", .number(1))
+        #expect(try JanetRuntime.main.eval("main-resettable") == .number(1))
+        JanetRuntime.main.reset()
+        #expect(performing: { try JanetRuntime.main.eval("main-resettable") }, throws: { ($0 as? JanetError)?.phase == .compile })
+    }
+
     @Test func sharesOneInstance() {
         #expect(JanetRuntime.main === JanetRuntime.main)
     }
