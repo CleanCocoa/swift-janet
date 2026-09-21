@@ -12,6 +12,8 @@ Two library products:
 
 Requires macOS 26 and Swift 6.3 (strict concurrency, `isolated deinit`).
 
+Design decisions are recorded in `docs/adrs/`; releases in `CHANGELOG.md`.
+
 ## Usage
 
 ```swift
