@@ -48,7 +48,7 @@ extension JanetError.Phase {
 
 extension JanetVM {
     /// Binds `value` to `name` in the core environment so later evaluations can refer to it.
-    func define(_ name: String, _ value: JanetValue, documentation: String? = nil) {
-        janet_def(env, name, value.makeRaw(), documentation)
+    func define(_ name: String, _ value: JanetValue, documentation: String? = nil) throws(JanetError) {
+        janet_def(env, name, try value.makeRaw(), documentation)
     }
 }

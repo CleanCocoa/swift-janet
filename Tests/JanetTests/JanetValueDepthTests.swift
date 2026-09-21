@@ -44,4 +44,21 @@ struct JanetValueDepthTests {
         let value = try await janet.eval("(let [a @[1]] @[a a])")
         #expect(value == .array([.array([.number(1)]), .array([.number(1)])]))
     }
+
+    @Test func definesValuesAtTheDepthLimit() async throws {
+        let janet = JanetRuntime()
+        try await janet.define("deep", Self.swiftNested(256))
+        #expect(try await janet.eval("deep") == Self.swiftNested(256))
+    }
+
+    @Test func rejectsDefiningValuesPastTheDepthLimit() async {
+        let janet = JanetRuntime()
+        let error = await #expect(throws: JanetError.self) { try await janet.define("deep", Self.swiftNested(257)) }
+        #expect(error?.phase == .copy)
+        #expect(error?.message == "value nested deeper than 256 levels")
+    }
+
+    private static func swiftNested(_ depth: Int) -> JanetValue {
+        (0..<depth).reduce(JanetValue.number(1)) { inner, _ in .tuple([inner]) }
+    }
 }

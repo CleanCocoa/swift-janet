@@ -26,7 +26,9 @@ public actor JanetRuntime {
     }
 
     /// Binds `value` to `name` in the core environment so later evaluations can refer to it.
-    public func define(_ name: String, _ value: JanetValue, documentation: String? = nil) {
-        vm.define(name, value, documentation: documentation)
+    ///
+    /// Throws with phase `.copy` when `value` nests deeper than `maxValueNestingDepth`.
+    public func define(_ name: String, _ value: JanetValue, documentation: String? = nil) throws(JanetError) {
+        try vm.define(name, value, documentation: documentation)
     }
 }

@@ -42,8 +42,8 @@ struct JanetRuntimeIsolationTests {
     @Test func runtimesAreIndependentAndUsableConcurrently() async throws {
         let a = JanetRuntime(name: "a")
         let b = JanetRuntime(name: "b")
-        await a.define("who", .string("a"))
-        await b.define("who", .string("b"))
+        try await a.define("who", .string("a"))
+        try await b.define("who", .string("b"))
         async let fromA = a.eval("(do (var n 0) (for i 0 100000 (++ n)) who)")
         async let fromB = b.eval("(do (var n 0) (for i 0 100000 (++ n)) who)")
         #expect(try await fromA == .string("a"))

@@ -18,7 +18,7 @@ Requires macOS 26 and Swift 6.3 (strict concurrency, `isolated deinit`).
 import Janet
 
 let janet = JanetRuntime()
-await janet.define("greeting", .string("hello"))
+try await janet.define("greeting", .string("hello"))
 let result = try await janet.eval("(string greeting \", world\")")
 // result == .string("hello, world")
 ```
