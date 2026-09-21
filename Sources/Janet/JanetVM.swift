@@ -24,7 +24,7 @@ final class JanetVM {
         if flags != 0 {
             throw JanetError(phase: .init(dostringFlags: flags), message: errorMessage(from: out))
         }
-        return JanetValue(raw: out)
+        return try JanetValue(raw: out)
     }
 
     private func errorMessage(from raw: Janet) -> String {

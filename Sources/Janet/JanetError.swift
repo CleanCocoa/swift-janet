@@ -1,7 +1,7 @@
-/// Failure reported by the Janet VM while parsing, compiling, or running code.
+/// Failure while parsing, compiling, or running code, or while copying its result into Swift.
 public struct JanetError: Error, Equatable, CustomStringConvertible {
     public enum Phase: Equatable, Sendable {
-        case parse, compile, runtime
+        case parse, compile, runtime, copy
     }
 
     public let phase: Phase

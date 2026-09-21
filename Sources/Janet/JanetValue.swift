@@ -19,9 +19,25 @@ public enum JanetValue: Hashable, Sendable {
     case unsupported(typeName: String)
 }
 
+/// Deepest container nesting a value may have when copied out of the VM.
+///
+/// Copying, hashing, comparing and releasing a `JanetValue` all recurse once per level,
+/// and the release runs on whichever thread drops the value last, often a 512 KB
+/// cooperative-pool thread. 256 sits at half the smallest depth measured to overflow one.
+// TODO: Expose through JanetRuntime.init if a caller ever needs deeper values.
+let maxValueNestingDepth = 256
+
 extension JanetValue {
     /// Copies `raw` out of the VM. Must run on the thread that owns the VM.
-    init(raw: Janet) {
+    ///
+    /// Throws with phase `.copy` when the value nests deeper than `maxValueNestingDepth`
+    /// or contains a reference cycle through an array or table.
+    init(raw: Janet) throws(JanetError) {
+        var path = CopyPath()
+        try self.init(raw: raw, path: &path)
+    }
+
+    private init(raw: Janet, path: inout CopyPath) throws(JanetError) {
         switch janet_type(raw) {
         case JANET_NIL:
             self = .nil
@@ -38,34 +54,73 @@ extension JanetValue {
         case JANET_TUPLE:
             let tuple = janet_unwrap_tuple(raw)!
             let count = Int(janet_tuple_head(tuple).pointee.length)
-            self = .tuple(Self.copy(elements: tuple, count: count))
+            try path.enter(nil)
+            self = .tuple(try Self.copy(elements: tuple, count: count, path: &path))
+            path.leave(nil)
         case JANET_ARRAY:
-            let array = janet_unwrap_array(raw)!.pointee
-            self = .array(Self.copy(elements: array.data, count: Int(array.count)))
+            let pointer = janet_unwrap_array(raw)!
+            let array = pointer.pointee
+            try path.enter(pointer)
+            self = .array(try Self.copy(elements: array.data, count: Int(array.count), path: &path))
+            path.leave(pointer)
         case JANET_STRUCT:
             let st = janet_unwrap_struct(raw)!
             let capacity = janet_struct_head(st).pointee.capacity
-            self = .struct(Self.copy(dictionary: st, capacity: capacity))
+            try path.enter(nil)
+            self = .struct(try Self.copy(dictionary: st, capacity: capacity, path: &path))
+            path.leave(nil)
         case JANET_TABLE:
-            let table = janet_unwrap_table(raw)!.pointee
-            self = .table(Self.copy(dictionary: table.data, capacity: table.capacity))
+            let pointer = janet_unwrap_table(raw)!
+            let table = pointer.pointee
+            try path.enter(pointer)
+            self = .table(try Self.copy(dictionary: table.data, capacity: table.capacity, path: &path))
+            path.leave(pointer)
         case let other:
             self = .unsupported(typeName: JanetValue.typeName(of: other))
         }
     }
 
-    private static func copy(elements: UnsafePointer<Janet>, count: Int) -> [JanetValue] {
-        UnsafeBufferPointer(start: elements, count: count).map(JanetValue.init(raw:))
+    private static func copy(elements: UnsafePointer<Janet>, count: Int, path: inout CopyPath) throws(JanetError) -> [JanetValue] {
+        var result: [JanetValue] = []
+        result.reserveCapacity(count)
+        for element in UnsafeBufferPointer(start: elements, count: count) {
+            result.append(try JanetValue(raw: element, path: &path))
+        }
+        return result
     }
 
-    private static func copy(dictionary kvs: UnsafePointer<JanetKV>, capacity: Int32) -> [JanetValue: JanetValue] {
+    private static func copy(dictionary kvs: UnsafePointer<JanetKV>, capacity: Int32, path: inout CopyPath) throws(JanetError) -> [JanetValue: JanetValue] {
         var result: [JanetValue: JanetValue] = [:]
         var kv = janet_dictionary_next(kvs, capacity, nil)
         while let entry = kv {
-            result[JanetValue(raw: entry.pointee.key)] = JanetValue(raw: entry.pointee.value)
+            result[try JanetValue(raw: entry.pointee.key, path: &path)] = try JanetValue(raw: entry.pointee.value, path: &path)
             kv = janet_dictionary_next(kvs, capacity, entry)
         }
         return result
+    }
+
+    /// The chain of containers currently being copied, from the root down.
+    ///
+    /// Only arrays and tables can form cycles; tuples and structs are immutable, so they
+    /// count toward depth but are not tracked for revisits.
+    private struct CopyPath {
+        private var depth = 0
+        private var mutableContainers: Set<UnsafeMutableRawPointer> = []
+
+        mutating func enter(_ container: UnsafeMutableRawPointer?) throws(JanetError) {
+            depth += 1
+            if depth > maxValueNestingDepth {
+                throw JanetError(phase: .copy, message: "value nested deeper than \(maxValueNestingDepth) levels")
+            }
+            if let container, !mutableContainers.insert(container).inserted {
+                throw JanetError(phase: .copy, message: "value contains a cycle")
+            }
+        }
+
+        mutating func leave(_ container: UnsafeMutableRawPointer?) {
+            depth -= 1
+            if let container { mutableContainers.remove(container) }
+        }
     }
 }
 

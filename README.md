@@ -33,7 +33,9 @@ arrives as `.unsupported(typeName:)`.
   owns. The runtime is `Sendable` and can be called from anywhere; create several to
   run scripts in parallel. The thread and VM are torn down when the runtime is released.
 - Janet prints error diagnostics to stderr before `eval` throws.
-- Values are deep-copied across the boundary in both directions.
+- Values are deep-copied across the boundary in both directions. A result nested deeper
+  than 256 levels, or containing a cycle through an array or table, makes `eval` throw
+  with phase `.copy` instead of overflowing the stack of whichever thread releases it.
 
 ## Updating Janet
 
