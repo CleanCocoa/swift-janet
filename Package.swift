@@ -30,6 +30,13 @@ let package = Package(
             dependencies: ["Janet"],
             swiftSettings: [.treatAllWarnings(as: .error)]
         ),
+        // Runs only via Benchmark/run.sh; see Benchmark/README.md.
+        .testTarget(
+            name: "JanetBenchmarks",
+            dependencies: ["Janet"],
+            path: "Benchmark/Sources",
+            swiftSettings: [.treatAllWarnings(as: .error)]
+        ),
     ],
     swiftLanguageModes: [.v6]
 )

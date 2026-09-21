@@ -37,6 +37,11 @@ arrives as `.unsupported(typeName:)`.
   than 256 levels, or containing a cycle through an array or table, makes `eval` throw
   with phase `.copy` instead of overflowing the stack of whichever thread releases it.
 
+## Benchmarking
+
+`Benchmark/run.sh` measures what the Swift layers add over the raw C API; see
+`Benchmark/README.md` for the method and reference numbers.
+
 ## Updating Janet
 
 ```sh
