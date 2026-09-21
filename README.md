@@ -44,3 +44,8 @@ Scripts/vendor-janet.sh v1.42.1
 This clones the tag, builds the amalgamation with Janet's own Makefile, and copies
 `janet.c`, `janet.h`, `LICENSE` and a `VERSION` marker into `Sources/CJanet`.
 Janet is MIT licensed; see `Sources/CJanet/LICENSE`.
+
+## Checking for leaks
+
+`Scripts/leaks.sh [--filter <test-or-suite>] [--graph <path.memgraph>]` runs the test
+bundle under macOS `leaks -atExit` and reports whether released `JanetRuntime` instances left the Janet VM or executor thread behind.
