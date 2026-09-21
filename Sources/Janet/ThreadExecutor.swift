@@ -1,5 +1,14 @@
 import Foundation
 
+/// Stack size for executor threads, matching the macOS main thread.
+///
+/// Darwin gives secondary threads 512 KB by default, and copying a nested `JanetValue`
+/// only a few hundred levels deep overflowed that. The main thread gets 8 MB, which is
+/// what the VM ran on before it moved to its own thread. The space is reserved, not
+/// committed, so the cost is address space rather than memory.
+// TODO: Expose through JanetRuntime.init if a caller ever needs a different size.
+let executorThreadStackSize = 8 << 20
+
 /// A serial executor that runs every job on one dedicated OS thread.
 ///
 /// Actors backed by this executor are pinned to a single thread, which is what
@@ -14,6 +23,7 @@ final class ThreadExecutor: SerialExecutor {
         let state = self.state
         let thread = Thread { state.run() }
         thread.name = name
+        thread.stackSize = executorThreadStackSize
         thread.start()
     }
 
