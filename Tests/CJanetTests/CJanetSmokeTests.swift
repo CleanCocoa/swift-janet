@@ -1,7 +1,7 @@
 import CJanet
 import Testing
 
-@Suite(.serialized)
+@Suite
 struct CJanetSmokeTests {
     @Test func evaluatesArithmeticThroughRawCAPI() {
         janet_init()

@@ -26,6 +26,11 @@ let package = Package(
             swiftSettings: [.treatAllWarnings(as: .error)]
         ),
         .testTarget(
+            name: "CJanetTests",
+            dependencies: ["CJanet"],
+            swiftSettings: [.treatAllWarnings(as: .error)]
+        ),
+        .testTarget(
             name: "JanetTests",
             dependencies: ["Janet"],
             swiftSettings: [.treatAllWarnings(as: .error)]
