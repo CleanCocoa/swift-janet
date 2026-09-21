@@ -44,9 +44,9 @@ final class JanetVM {
     private var isOnOwnThread: Bool { pthread_equal(thread, pthread_self()) != 0 }
 
     /// Parses, compiles and runs `source`, returning the value of its last form.
-    @discardableResult
     ///
     /// - Precondition: runs on the thread that created this VM.
+    @discardableResult
     func eval(_ source: String, sourceName: String = "swift") throws(JanetError) -> JanetValue {
         precondition(isOnOwnThread, "JanetVM.eval must run on the thread that created the VM")
         var out = janet_wrap_nil()
