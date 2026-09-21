@@ -85,8 +85,10 @@ final class ThreadExecutor: SerialExecutor {
             condition.unlock()
         }
 
+        /// - Precondition: called once, from the thread that will own the queue.
         func run() {
             condition.lock()
+            precondition(thread == nil, "ThreadExecutor's queue is already drained by another thread")
             thread = pthread_self()
             condition.unlock()
             while true {
